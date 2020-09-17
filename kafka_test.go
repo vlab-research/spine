@@ -10,17 +10,6 @@ import (
 )
 
 
-func makeMessages(vals []string) []*kafka.Message {
-	msgs := []*kafka.Message{}
-	for _, v := range vals {
-		msg := &kafka.Message{}
-		msg.Value = []byte(v)
-		msgs = append(msgs, msg)
-	}
-
-	return msgs
-}
-
 
 type TestError struct{ msg string }
 func (e *TestError) Error() string {
@@ -86,11 +75,6 @@ func TestProcessReturnsChannelWithAllErrors(t *testing.T) {
 	m.AssertExpectations(t)
 }
 
-type TestConsumer struct {
-	Messages []*kafka.Message
-	Commits int
-	commitError bool
-}
 
 func (c *TestConsumer) ReadMessage(d time.Duration) (*kafka.Message, error) {
 	if len(c.Messages) == 0 {
@@ -111,7 +95,7 @@ func (c *TestConsumer) Commit() ([]kafka.TopicPartition, error) {
 }
 
 func TestSideEffectReadPartial(t *testing.T) {
-	msgs := makeMessages([]string{
+	msgs := MakeMessages([]string{
 		`{"userid": "bar",
           "pageid": "foo",
           "updated": 1598706047838,
@@ -139,7 +123,7 @@ func TestSideEffectReadPartial(t *testing.T) {
 }
 
 func TestSideEffectErrorsDoesntCommitBeforeHandlingError(t *testing.T) {
-	msgs := makeMessages([]string{
+	msgs := MakeMessages([]string{
 		`{"userid": "bar",
           "pageid": "foo",
           "updated": 1598706047838,
@@ -170,7 +154,7 @@ func TestSideEffectErrorsDoesntCommitBeforeHandlingError(t *testing.T) {
 
 
 func TestSideEffectOutputsCommitErrorOnErrorChannel(t *testing.T) {
-	msgs := makeMessages([]string{
+	msgs := MakeMessages([]string{
 		`{"userid": "bar",
           "pageid": "foo",
           "updated": 1598706047838,
@@ -202,7 +186,7 @@ func TestSideEffectOutputsCommitErrorOnErrorChannel(t *testing.T) {
 }
 
 func TestSideEffectReadAllOutstanding(t *testing.T) {
-	msgs := makeMessages([]string{
+	msgs := MakeMessages([]string{
 		`{"userid": "bar",
           "pageid": "foo",
           "updated": 1598706047838,
