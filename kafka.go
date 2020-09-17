@@ -14,9 +14,9 @@ type ConsumerInterface interface {
 
 type KafkaConsumer struct {
 	Consumer ConsumerInterface
-	timeout time.Duration
-	batchSize int
-	chunkSize int
+	Timeout time.Duration
+	BatchSize int
+	ChunkSize int
 }
 
 func NewKafkaConsumer(topic string, brokers string, group string, timeout time.Duration, batchSize int, chunkSize int) KafkaConsumer {
@@ -130,7 +130,7 @@ func (consumer KafkaConsumer) SideEffect (fn SideEffectFn, errs chan error) {
 
 
 func (consumer KafkaConsumer) Consume (errs chan error) chan []*kafka.Message {
-	return chunk(consumer.consumeStream(errs), consumer.chunkSize)
+	return chunk(consumer.consumeStream(errs), consumer.ChunkSize)
 }
 
 
@@ -142,9 +142,9 @@ func (consumer KafkaConsumer) consumeStream (errs chan error) chan *kafka.Messag
 	go func() {
 		defer close(messages)
 		count := 0
-		for i := 1; i <= consumer.batchSize; i++ {
+		for i := 1; i <= consumer.BatchSize; i++ {
 
-			msg, err := c.ReadMessage(consumer.timeout)
+			msg, err := c.ReadMessage(consumer.Timeout)
 
 			if err != nil {
 				if e, ok := err.(kafka.Error); ok && e.Code() == kafka.ErrTimedOut {

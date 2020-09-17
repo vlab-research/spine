@@ -9,13 +9,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-
-
-type TestError struct{ msg string }
-func (e *TestError) Error() string {
-    return e.msg
-}
-
 type MockProcessor struct {
 	mock.Mock
 }
@@ -25,7 +18,6 @@ func (m *MockProcessor) Fn (messages []*kafka.Message) error {
 	_ = m.Called(messages)
 	return nil
 }
-
 
 func (m *MockProcessor) FnError (messages []*kafka.Message) error {
 	_ = m.Called(messages)
@@ -73,25 +65,6 @@ func TestProcessReturnsChannelWithAllErrors(t *testing.T) {
 	assert.Equal(t, len(es), 3, "returned all 3 errors in channel")
 	m.AssertNumberOfCalls(t, "FnError", 3)
 	m.AssertExpectations(t)
-}
-
-
-func (c *TestConsumer) ReadMessage(d time.Duration) (*kafka.Message, error) {
-	if len(c.Messages) == 0 {
-		return nil, kafka.NewError(kafka.ErrTimedOut, "test", false)
-	}
-
-	head := c.Messages[0]
-	c.Messages = c.Messages[1:]
-	return head, nil
-}
-
-func (c *TestConsumer) Commit() ([]kafka.TopicPartition, error) {
-	c.Commits += 1
-	if c.commitError {
-		return nil, &TestError{"foo"}
-	}
-	return []kafka.TopicPartition{}, nil
 }
 
 func TestSideEffectReadPartial(t *testing.T) {
@@ -162,7 +135,7 @@ func TestSideEffectOutputsCommitErrorOnErrorChannel(t *testing.T) {
           "state_json": { "token": "bar", "state": "QOUT", "tokens": ["foo"]}}`,
 	})
 
-	c := &TestConsumer{Messages: msgs, Commits: 0, commitError: true}
+	c := &TestConsumer{Messages: msgs, Commits: 0, CommitError: true}
 	consumer := KafkaConsumer{c, time.Second, 1, 1}
 	count := 0
 	fn := func([]*kafka.Message) error { 
