@@ -1,35 +1,34 @@
 package spine
 
 import (
+	"errors"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"testing"
 	"time"
-	"errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/stretchr/testify/mock"
 )
 
 type MockProcessor struct {
 	mock.Mock
 }
 
-func (m *MockProcessor) Fn (messages []*kafka.Message) error {
-	time.Sleep(10*time.Millisecond)
+func (m *MockProcessor) Fn(messages []*kafka.Message) error {
+	time.Sleep(10 * time.Millisecond)
 	_ = m.Called(messages)
 	return nil
 }
 
-func (m *MockProcessor) FnError (messages []*kafka.Message) error {
+func (m *MockProcessor) FnError(messages []*kafka.Message) error {
 	_ = m.Called(messages)
 	return errors.New("hey")
 }
 
-
 func TestProcessBlocksUntilFunctionsFinish(t *testing.T) {
 	messages := make(chan []*kafka.Message)
-	go func(){
+	go func() {
 		defer close(messages)
-		for _, _ = range []int{1,2,3} {
+		for _, _ = range []int{1, 2, 3} {
 			messages <- []*kafka.Message{&kafka.Message{}}
 		}
 	}()
@@ -38,17 +37,17 @@ func TestProcessBlocksUntilFunctionsFinish(t *testing.T) {
 	m.On("Fn", []*kafka.Message{&kafka.Message{}})
 
 	errs := process(messages, m.Fn)
-	for _ = range errs {}
+	for _ = range errs {
+	}
 	m.AssertNumberOfCalls(t, "Fn", 3)
 	m.AssertExpectations(t)
 }
 
-
 func TestProcessReturnsChannelWithAllErrors(t *testing.T) {
 	messages := make(chan []*kafka.Message)
-	go func(){
+	go func() {
 		defer close(messages)
-		for _, _ = range []int{1,2,3} {
+		for _, _ = range []int{1, 2, 3} {
 			messages <- []*kafka.Message{&kafka.Message{}}
 		}
 	}()
@@ -84,9 +83,9 @@ func TestSideEffectReadPartial(t *testing.T) {
 	c := &TestConsumer{Messages: msgs, Commits: 0}
 	consumer := KafkaConsumer{c, time.Second, 1, 1}
 	count := 0
-	fn := func([]*kafka.Message) error { 
+	fn := func([]*kafka.Message) error {
 		count += 1
-		return nil 
+		return nil
 	}
 
 	errs := make(chan error)
@@ -107,14 +106,14 @@ func TestSideEffectErrorsDoesntCommitBeforeHandlingError(t *testing.T) {
 	c := &TestConsumer{Messages: msgs, Commits: 0}
 	consumer := KafkaConsumer{c, time.Second, 1, 1}
 	count := 0
-	fn := func([]*kafka.Message) error { 
+	fn := func([]*kafka.Message) error {
 		count += 1
 		return errors.New("test")
 	}
 
 	done := make(chan bool)
 	errs := make(chan error)
-	go func(){
+	go func() {
 		for _ = range errs {
 			assert.Equal(t, 0, c.Commits)
 			close(done)
@@ -122,9 +121,8 @@ func TestSideEffectErrorsDoesntCommitBeforeHandlingError(t *testing.T) {
 	}()
 	consumer.SideEffect(fn, errs)
 
-	<- done
+	<-done
 }
-
 
 func TestSideEffectOutputsCommitErrorOnErrorChannel(t *testing.T) {
 	msgs := MakeMessages([]string{
@@ -138,14 +136,14 @@ func TestSideEffectOutputsCommitErrorOnErrorChannel(t *testing.T) {
 	c := &TestConsumer{Messages: msgs, Commits: 0, CommitError: true}
 	consumer := KafkaConsumer{c, time.Second, 1, 1}
 	count := 0
-	fn := func([]*kafka.Message) error { 
+	fn := func([]*kafka.Message) error {
 		count += 1
 		return nil
 	}
 
 	done := make(chan bool)
 	errs := make(chan error)
-	go func(){
+	go func() {
 		for e := range errs {
 			t.Log(e)
 			_, ok := e.(*TestError)
@@ -155,7 +153,7 @@ func TestSideEffectOutputsCommitErrorOnErrorChannel(t *testing.T) {
 	}()
 	consumer.SideEffect(fn, errs)
 
-	<- done
+	<-done
 }
 
 func TestSideEffectReadAllOutstanding(t *testing.T) {
@@ -175,9 +173,9 @@ func TestSideEffectReadAllOutstanding(t *testing.T) {
 	c := &TestConsumer{Messages: msgs, Commits: 0}
 	consumer := KafkaConsumer{c, time.Second, 3, 3}
 	count := 0
-	fn := func([]*kafka.Message) error { 
+	fn := func([]*kafka.Message) error {
 		count += 1
-		return nil 
+		return nil
 	}
 
 	errs := make(chan error)

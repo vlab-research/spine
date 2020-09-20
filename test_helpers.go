@@ -18,8 +18,8 @@ func MakeMessages(vals []string) []*kafka.Message {
 }
 
 type TestConsumer struct {
-	Messages []*kafka.Message
-	Commits int
+	Messages    []*kafka.Message
+	Commits     int
 	CommitError bool
 }
 
@@ -34,8 +34,9 @@ func (c *TestConsumer) ReadMessage(d time.Duration) (*kafka.Message, error) {
 }
 
 type TestError struct{ msg string }
+
 func (e *TestError) Error() string {
-    return e.msg
+	return e.msg
 }
 
 func (c *TestConsumer) Commit() ([]kafka.TopicPartition, error) {
