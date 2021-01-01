@@ -1,3 +1,12 @@
+// Package spine provides a simple abstraction for processing
+// a Kafka stream as an at-least-once "sink" of any kind.
+// Messages are split into "chunks" which can be processed by a
+// user-provided blocking function that performs some side effect.
+// The Kafka stream is then consumed in "batches", with each batch
+// consisting of one or more chunks of messages. Chunks within
+// the batch are parallelized to the user-provided side effect
+// function in go loops. After each batch is sucessfully processed,
+// the kafka consumer commits the offset, and consumes another batch.
 package spine
 
 import (
@@ -12,6 +21,11 @@ type ConsumerInterface interface {
 	Commit() ([]kafka.TopicPartition, error)
 }
 
+// KafkaConsumer is the primary type exposed by this package.
+// A KafkaConsumer consumes messages in batches of size BatchSize
+// and commits after each batch. It splits the batch into chunks
+// of size ChunkSize for processing by a user-provided SideEffectFn.
+// All chunks in a batch are processed in parallel.
 type KafkaConsumer struct {
 	Consumer  ConsumerInterface
 	Timeout   time.Duration
@@ -19,6 +33,11 @@ type KafkaConsumer struct {
 	ChunkSize int
 }
 
+// TODO: make config struct
+// include max poll interval
+
+// NewKafkaConsumer is a convenience function to create the kafka.Consumer
+// and return a new KafkaConsumer struct for later use.
 func NewKafkaConsumer(topic string, brokers string, group string, timeout time.Duration, batchSize int, chunkSize int) KafkaConsumer {
 	c, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers":    brokers,
@@ -104,28 +123,7 @@ func process(messages chan []*kafka.Message, fn SideEffectFn) <-chan error {
 	return merge(chans...)
 }
 
-func (consumer KafkaConsumer) SideEffect(fn SideEffectFn, errs chan error) {
-	messages := consumer.Consume(errs)
-
-	// block until finished processing
-	// and all errors are checked
-	perrs := process(messages, fn)
-	for err := range perrs {
-		errs <- err
-	}
-
-	// commit!
-	_, err := consumer.Consumer.Commit()
-	if err != nil {
-		if e, ok := err.(kafka.Error); ok && e.Code() == kafka.ErrNoOffset {
-			log.Print("Finished batch but committing 0 messages")
-		} else {
-			errs <- err
-		}
-	}
-}
-
-func (consumer KafkaConsumer) Consume(errs chan error) chan []*kafka.Message {
+func (consumer KafkaConsumer) consume(errs chan error) chan []*kafka.Message {
 	return chunk(consumer.consumeStream(errs), consumer.ChunkSize)
 }
 
@@ -156,4 +154,28 @@ func (consumer KafkaConsumer) consumeStream(errs chan error) chan *kafka.Message
 	}()
 
 	return messages
+}
+
+// SideEffect is a blocking call that will calls the given function for each
+// chunk of data in the batch, in parallel, and commits after the batch is
+// processed. All errors are emitted on the error channel.
+func (consumer KafkaConsumer) SideEffect(fn SideEffectFn, errs chan error) {
+	messages := consumer.consume(errs)
+
+	// block until finished processing
+	// and all errors are checked
+	perrs := process(messages, fn)
+	for err := range perrs {
+		errs <- err
+	}
+
+	// commit!
+	_, err := consumer.Consumer.Commit()
+	if err != nil {
+		if e, ok := err.(kafka.Error); ok && e.Code() == kafka.ErrNoOffset {
+			log.Print("Finished batch but committing 0 messages")
+		} else {
+			errs <- err
+		}
+	}
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
-func MakeMessages(vals []string) []*kafka.Message {
+func makeMessages(vals []string) []*kafka.Message {
 	msgs := []*kafka.Message{}
 	for _, v := range vals {
 		msg := &kafka.Message{}
@@ -33,16 +33,16 @@ func (c *TestConsumer) ReadMessage(d time.Duration) (*kafka.Message, error) {
 	return head, nil
 }
 
-type TestError struct{ msg string }
+type testError struct{ msg string }
 
-func (e *TestError) Error() string {
+func (e *testError) Error() string {
 	return e.msg
 }
 
 func (c *TestConsumer) Commit() ([]kafka.TopicPartition, error) {
 	c.Commits += 1
 	if c.CommitError {
-		return nil, &TestError{"foo"}
+		return nil, &testError{"foo"}
 	}
 	return []kafka.TopicPartition{}, nil
 }
